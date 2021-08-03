@@ -1,0 +1,13 @@
+CREATE QUERY employeeFromCourse(STRING courseid/* Parameters here */) FOR GRAPH @graphname@ { 
+  SumAccum<INT> @numEmployees;
+  ListAccum<STRING> @employees;
+  
+  Courses = {Course.*};
+  res = SELECT c 
+        FROM Courses:c-()->Employee:e 
+        ACCUM c.@employees += e.email, c.@numEmployees +=1;
+  
+  cour = SELECT c FROM Courses:c WHERE c.id == courseid;
+  
+  PRINT cour[cour.@employees, cour.@numEmployees]; 
+}

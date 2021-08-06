@@ -1,0 +1,28 @@
+CREATE QUERY takenCourseRecommendation (STRING input_user, INT k) FOR GRAPH graph_example SYNTAX v2{
+
+  SumAccum<int> @CourseInCommon;
+  SumAccum<float> @SimilarityScore;
+  SumAccum<float> @Rank;
+  OrAccum @Taken = false;
+
+   #1. mark courses taken by person
+   #2. calculate log similarity score for each persons share the same 
+   #   interests at Tag level.
+    Others =
+       SELECT p
+       FROM Employee:e-(EMPLOYEE_COMPLETED_COURSE>)-Course:c- (reverse_EMPLOYEE_COMPLETED_COURSE>)- Employee:p
+       WHERE e.email == input_user
+       ACCUM c.@Taken = true, p.@CourseInCommon +=1
+       POST-ACCUM p.@SimilarityScore = log (1 + p.@CourseInCommon);
+
+    # recommend new courses that have not been taken
+    RecommendedCourse =
+             SELECT c
+             FROM Others:o-(EMPLOYEE_COMPLETED_COURSE>) - Course:c
+             WHERE  c.@Taken == false
+             ACCUM c.@Rank +=o.@SimilarityScore
+             ORDER BY c.@Rank DESC
+             LIMIT k;
+
+  PRINT   RecommendedCourse[RecommendedCourse.id, RecommendedCourse.@Rank];
+}

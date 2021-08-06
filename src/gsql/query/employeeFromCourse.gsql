@@ -1,4 +1,4 @@
-CREATE QUERY employeeFromCourse(STRING courseid/* Parameters here */) FOR GRAPH @graphname@ { 
+CREATE QUERY employeeFromCourse(STRING courseid/* Parameters here */) FOR GRAPH graph_example { 
   SumAccum<INT> @numEmployees;
   ListAccum<STRING> @employees;
   

@@ -1,0 +1,41 @@
+CREATE QUERY cosineRecommendation (STRING email, INT k) FOR GRAPH graph_example SYNTAX v2{
+
+  SumAccum<int> @CourseInCommon = 0;
+  SumAccum<int> @CourseCnt = 0 ;
+  SumAccum<int> @@InputPersonCourseCnt = 0;
+  SumAccum<float> @SimilarityScore;
+  SumAccum<float> @Rank;
+  SumAccum<float> @TagCnt = 0;
+  OrAccum @Took = false;
+  float sqrtOfInputPersonCourseCnt;
+
+   #1. mark courses taken by input user
+   #2. find common courses between input user and other persons
+    Others =
+       SELECT p
+       FROM Employee:s-(EMPLOYEE_COMPLETED_COURSE>)-Course:c -(<EMPLOYEE_COMPLETED_COURSE)-Employee:p
+       WHERE s.email == email
+       ACCUM c.@Took = true, @@InputPersonCourseCnt += 1,
+             p.@CourseInCommon += 1;
+
+    sqrtOfInputPersonCourseCnt = sqrt(@@InputPersonCourseCnt);
+
+    #calculate cosine similarity score.
+    #|AxB|/(sqrt(Sum(A_i^2)) * sqrt(Sum(B_i^2)))
+    Others  =
+        SELECT o
+        FROM Others:o-(EMPLOYEE_COMPLETED_COURSE>)-Course:c
+        ACCUM o.@CourseCnt += 1
+        POST-ACCUM o.@SimilarityScore = o.@CourseInCommon/(sqrtOfInputPersonCourseCnt * sqrt(o.@CourseCnt));
+
+   #recommend new courses to input user that have not been taken
+    RecommendedCourse =
+             SELECT c
+             FROM Others:o-(EMPLOYEE_COMPLETED_COURSE>) - :c
+             WHERE  c.@Took == false
+             ACCUM c.@Rank +=o.@SimilarityScore
+             ORDER BY c.@Rank DESC
+             LIMIT k;
+
+  PRINT   RecommendedCourse[RecommendedCourse.id, RecommendedCourse.@Rank];
+}
